@@ -58,12 +58,12 @@ export const DropdownField = ({
   const defaultValue = parsedFieldMeta?.defaultValue;
   const [localChoice, setLocalChoice] = useState(parsedFieldMeta.defaultValue ?? '');
 
-  const { mutateAsync: signFieldWithToken, isLoading: isSignFieldWithTokenLoading } =
+  const { mutateAsync: signFieldWithToken, isPending: isSignFieldWithTokenLoading } =
     trpc.field.signFieldWithToken.useMutation(DO_NOT_INVALIDATE_QUERY_ON_MUTATION);
 
   const {
     mutateAsync: removeSignedFieldWithToken,
-    isLoading: isRemoveSignedFieldWithTokenLoading,
+    isPending: isRemoveSignedFieldWithTokenLoading,
   } = trpc.field.removeSignedFieldWithToken.useMutation(DO_NOT_INVALIDATE_QUERY_ON_MUTATION);
 
   const isLoading = isSignFieldWithTokenLoading || isRemoveSignedFieldWithTokenLoading || isPending;
@@ -190,7 +190,7 @@ export const DropdownField = ({
                 )}
               >
                 <SelectValue
-                  className="text-[clamp(0.625rem,1cqw,0.825rem)]"
+                  className="text-[clamp(0.425rem,25cqw,0.825rem)]"
                   placeholder={`${_(msg`Select`)}`}
                 />
               </SelectTrigger>
@@ -206,7 +206,7 @@ export const DropdownField = ({
         )}
 
         {field.inserted && (
-          <p className="text-muted-foreground dark:text-background/80 text-[clamp(0.625rem,1cqw,0.825rem)] duration-200">
+          <p className="text-muted-foreground dark:text-background/80 text-[clamp(0.425rem,25cqw,0.825rem)] duration-200">
             {field.customText}
           </p>
         )}

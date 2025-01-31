@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 
 import { Trans } from '@lingui/macro';
-import { useLingui } from '@lingui/react';
 import { DateTime } from 'luxon';
 import { match } from 'ts-pattern';
 
@@ -15,10 +14,10 @@ import {
   ZRadioFieldMeta,
   ZTextFieldMeta,
 } from '@documenso/lib/types/field-meta';
+import type { TTemplate } from '@documenso/lib/types/template';
 import { sortFieldsByPosition, validateFieldsInserted } from '@documenso/lib/utils/fields';
 import type { Field, Recipient, Signature } from '@documenso/prisma/client';
 import { FieldType } from '@documenso/prisma/client';
-import type { TemplateWithDetails } from '@documenso/prisma/types/template';
 import type {
   TRemovedSignedFieldWithTokenMutationSchema,
   TSignFieldWithTokenMutationSchema,
@@ -56,13 +55,13 @@ export type SignDirectTemplateFormProps = {
   flowStep: DocumentFlowStep;
   directRecipient: Recipient;
   directRecipientFields: Field[];
-  template: TemplateWithDetails;
+  template: Omit<TTemplate, 'user'>;
   onSubmit: (_data: DirectTemplateLocalField[]) => Promise<void>;
 };
 
 export type DirectTemplateLocalField = Field & {
   signedValue?: TSignFieldWithTokenMutationSchema;
-  Signature?: Signature;
+  signature?: Signature;
 };
 
 export const SignDirectTemplateForm = ({
@@ -72,9 +71,8 @@ export const SignDirectTemplateForm = ({
   template,
   onSubmit,
 }: SignDirectTemplateFormProps) => {
-  const { _ } = useLingui();
-
-  const { fullName, signature, setFullName, setSignature } = useRequiredSigningContext();
+  const { fullName, signature, signatureValid, setFullName, setSignature } =
+    useRequiredSigningContext();
 
   const [localFields, setLocalFields] = useState<DirectTemplateLocalField[]>(directRecipientFields);
   const [validateUninsertedFields, setValidateUninsertedFields] = useState(false);
@@ -97,14 +95,14 @@ export const SignDirectTemplateForm = ({
         };
 
         if (field.type === FieldType.SIGNATURE) {
-          tempField.Signature = {
+          tempField.signature = {
             id: 1,
             created: new Date(),
             recipientId: 1,
             fieldId: 1,
-            signatureImageAsBase64: value.value,
-            typedSignature: null,
-          };
+            signatureImageAsBase64: value.value.startsWith('data:') ? value.value : null,
+            typedSignature: value.value.startsWith('data:') ? null : value.value,
+          } satisfies Signature;
         }
 
         if (field.type === FieldType.DATE) {
@@ -129,11 +127,13 @@ export const SignDirectTemplateForm = ({
           customText: '',
           inserted: false,
           signedValue: undefined,
-          Signature: undefined,
+          signature: undefined,
         };
       }),
     );
   };
+
+  const hasSignatureField = localFields.some((field) => field.type === FieldType.SIGNATURE);
 
   const uninsertedFields = useMemo(() => {
     return sortFieldsByPosition(localFields.filter((field) => !field.inserted));
@@ -146,6 +146,10 @@ export const SignDirectTemplateForm = ({
 
   const handleSubmit = async () => {
     setValidateUninsertedFields(true);
+
+    if (hasSignatureField && !signatureValid) {
+      return;
+    }
 
     const isFieldsValid = validateFieldsInserted(localFields);
 

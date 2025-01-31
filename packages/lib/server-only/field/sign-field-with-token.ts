@@ -8,6 +8,7 @@ import { validateDropdownField } from '@documenso/lib/advanced-fields-validation
 import { validateNumberField } from '@documenso/lib/advanced-fields-validation/validate-number';
 import { validateRadioField } from '@documenso/lib/advanced-fields-validation/validate-radio';
 import { validateTextField } from '@documenso/lib/advanced-fields-validation/validate-text';
+import { fromCheckboxValue } from '@documenso/lib/universal/field-checkbox';
 import { prisma } from '@documenso/prisma';
 import { DocumentStatus, FieldType, SigningStatus } from '@documenso/prisma/client';
 
@@ -58,17 +59,17 @@ export const signFieldWithToken = async ({
   const field = await prisma.field.findFirstOrThrow({
     where: {
       id: fieldId,
-      Recipient: {
+      recipient: {
         token,
       },
     },
     include: {
-      Document: true,
-      Recipient: true,
+      document: true,
+      recipient: true,
     },
   });
 
-  const { Document: document, Recipient: recipient } = field;
+  const { document, recipient } = field;
 
   if (!document) {
     throw new Error(`Document not found for field ${field.id}`);
@@ -119,7 +120,8 @@ export const signFieldWithToken = async ({
 
   if (field.type === FieldType.CHECKBOX && field.fieldMeta) {
     const checkboxFieldParsedMeta = ZCheckboxFieldMeta.parse(field.fieldMeta);
-    const checkboxFieldValues = value.split(',');
+    const checkboxFieldValues: string[] = fromCheckboxValue(value);
+
     const errors = validateCheckboxField(checkboxFieldValues, checkboxFieldParsedMeta, true);
 
     if (errors.length > 0) {
@@ -177,6 +179,10 @@ export const signFieldWithToken = async ({
     throw new Error('Signature field must have a signature');
   }
 
+  if (isSignatureField && !documentMeta?.typedSignatureEnabled && typedSignature) {
+    throw new Error('Typed signatures are not allowed. Please draw your signature');
+  }
+
   return await prisma.$transaction(async (tx) => {
     const updatedField = await tx.field.update({
       where: {
@@ -207,7 +213,7 @@ export const signFieldWithToken = async ({
 
       // Dirty but I don't want to deal with type information
       Object.assign(updatedField, {
-        Signature: signature,
+        signature,
       });
     }
 
